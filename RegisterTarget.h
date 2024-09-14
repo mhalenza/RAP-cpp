@@ -58,10 +58,9 @@ public:
 
     virtual void seqWrite(AddressType start_addr, std::span<DataType const> data, size_t increment = sizeof(DataType)) override
     {
-        if (!Cfg::FeatureSequential)
-            return this->IRegisterTarget::seqWrite(start_addr, data, increment);
-        if (!Cfg::FeatureIncrement && increment != sizeof(DataType))
-            return this->IRegisterTarget::seqWrite(start_addr, data, increment);
+        if (!this->checkIFS(increment))
+             return this->IRegisterTarget::seqWrite(start_addr, data, increment);
+
         auto const cmd = RAP::Serdes::WriteSeqCommand<Cfg>{
             .transaction_id = this->getNextTxnId(),
             .posted = false,
@@ -73,10 +72,9 @@ public:
     }
     virtual void seqRead(AddressType start_addr, std::span<DataType> out_data, size_t increment = sizeof(DataType)) override
     {
-        if (!Cfg::FeatureSequential)
+        if (!this->checkIFS(increment))
             return this->IRegisterTarget::seqRead(start_addr, out_data, increment);
-        if (!Cfg::FeatureIncrement && increment != sizeof(DataType))
-            return this->IRegisterTarget::seqRead(start_addr, out_data, increment);
+
         auto const cmd = RAP::Serdes::ReadSeqCommand<Cfg>{
             .transaction_id = this->getNextTxnId(),
             .start_addr = start_addr,
@@ -159,6 +157,16 @@ private:
     uint8_t getNextTxnId()
     {
         return this->next_txn_id.fetch_add(1);
+    }
+    bool checkIFS(size_t increment) const
+    {
+        if (Cfg::FeatureIncrement)
+            return true;
+        if (increment == 0 && Cfg::FeatureFifo)
+            return true;
+        if (increment == sizeof(Cfg::DataType) && Cfg::FeatureSequential)
+            return true;
+        return false;
     }
 private:
     std::unique_ptr<RAP::Transport::ISyncWireTransport> transport;
