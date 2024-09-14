@@ -1,6 +1,11 @@
 #pragma once
 #include "Types.h"
 #include "Configuration.h"
+#define CRCPP_USE_NAMESPACE
+#define CRCPP_BRANCHLESS
+#define CRCPP_USE_CPP11
+#include "CRCpp/inc/CRC.h"
+#include <limits>
 #include <span>
 #include <variant>
 #include <vector>
@@ -469,8 +474,9 @@ private:
     }
     void appendCrc(Buffer& buf) const
     {
+        auto const crc = calculateCrc(buf);
         for (size_t i = 0; i < Cfg::CrcBytes; i++) {
-            buf.push_back(0xFE);
+            buf.push_back(crc >> (i*8));
         }
     }
     uint8_t extractByte(BufferView& buf) const
@@ -557,7 +563,46 @@ private:
     }
     Cfg::CrcType calculateCrc(BufferView buf) const
     {
-        return 0xFEFEFEFEFEFEFEFE;
+        if constexpr (Cfg::CrcBytes == 1) {
+            static auto const table = CRCPP::CRC::Parameters<Cfg::CrcType, 8>{ // CRC-8/DVB-S2
+                .polynomial = 0xd5,
+                .initialValue = 0x00,
+                .finalXOR = 0x00,
+                .reflectInput = false,
+                .reflectOutput = false,
+            }.MakeTable();
+            return CRCPP::CRC::Calculate(buf.data(), buf.size(), table);
+        }
+        else if constexpr (Cfg::CrcBytes == 2) {
+            static auto const table = CRCPP::CRC::Parameters<Cfg::CrcType, 16>{ // CRC-16/XMODEM
+                .polynomial = 0x1021,
+                .initialValue = 0x0000,
+                .finalXOR = 0x0000,
+                .reflectInput = false,
+                .reflectOutput = false,
+            }.MakeTable();
+            return CRCPP::CRC::Calculate(buf.data(), buf.size(), table);
+        }
+        else if constexpr (Cfg::CrcBytes == 3) {
+            static auto const table = CRCPP::CRC::Parameters<Cfg::CrcType, 24>{ // CRC-24/INTERLAKEN
+                .polynomial = 0x328b63,
+                .initialValue = 0xffffff,
+                .finalXOR = 0xffffff,
+                .reflectInput = false,
+                .reflectOutput = false,
+            }.MakeTable();
+            return CRCPP::CRC::Calculate(buf.data(), buf.size(), table);
+        }
+        else if constexpr (Cfg::CrcBytes == 4) {
+            static auto const table = CRCPP::CRC::Parameters<Cfg::CrcType, 32>{ // CRC-32/INTERLAKEN
+                .polynomial = 0x1edc6f41,
+                .initialValue = 0xffffffff,
+                .finalXOR = 0xffffffff,
+                .reflectInput = true,
+                .reflectOutput = true,
+            }.MakeTable();
+            return CRCPP::CRC::Calculate(buf.data(), buf.size(), table);
+        }
     }
 private:
     template <typename T>
