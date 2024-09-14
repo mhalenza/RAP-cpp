@@ -6,7 +6,13 @@
 namespace RAP {
 
 template <typename T>
-concept ValidAdlcType = std::is_same_v<T, uint8_t> || std::is_same_v<T, uint16_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, uint64_t>;
+concept ValidAddressType = std::is_same_v<T, uint8_t> || std::is_same_v<T, uint16_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, uint64_t>;
+template <typename T>
+concept ValidDataType = std::is_same_v<T, uint8_t> || std::is_same_v<T, uint16_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, uint64_t>;
+template <typename T>
+concept ValidLengthType = std::is_same_v<T, uint8_t> || std::is_same_v<T, uint16_t>;
+template <typename T>
+concept ValidCrcType = std::is_same_v<T, uint8_t> || std::is_same_v<T, uint16_t> || std::is_same_v<T, uint32_t>;
 
 /*
 struct Configuration {
@@ -33,26 +39,26 @@ template <typename CfgType>
 concept IsConfigurationType = requires()
 {
     typename CfgType::AddressType;
-    ValidAdlcType<typename CfgType::AddressType> == true;
+    ValidAddressType<typename CfgType::AddressType>;
     std::same_as<decltype(CfgType::AddressBits), uint8_t>;
     std::same_as<decltype(CfgType::AddressBytes), uint8_t>;
     (CfgType::AddressBits + 7) / 8 <= CfgType::AddressBytes;
     CfgType::AddressBytes <= sizeof(CfgType::AddressType);
 
     typename CfgType::DataType;
-    ValidAdlcType<typename CfgType::DataType> == true;
+    ValidDataType<typename CfgType::DataType>;
     std::same_as<decltype(CfgType::DataBits), uint8_t>;
     std::same_as<decltype(CfgType::DataBytes), uint8_t>;
     (CfgType::DataBits + 7) / 8 <= CfgType::DataBytes;
     CfgType::DataBytes <= sizeof(CfgType::DataType);
 
     typename CfgType::LengthType;
-    ValidAdlcType<typename CfgType::LengthType> == true;
+    ValidLengthType<typename CfgType::LengthType>;
     std::same_as<decltype(CfgType::LengthBytes), uint8_t>;
     CfgType::LengthBytes <= sizeof(CfgType::LengthType);
 
     typename CfgType::CrcType;
-    ValidAdlcType<typename CfgType::CrcType> == true;
+    ValidCrcType<typename CfgType::CrcType>;
     std::same_as<decltype(CfgType::CrcBytes), uint8_t>;
     CfgType::CrcBytes <= sizeof(CfgType::CrcType);
 
