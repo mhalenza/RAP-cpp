@@ -262,13 +262,13 @@ class Serdes {
 public:
     explicit Serdes(size_t max_message_size_) : max_message_size(max_message_size_) {}
 
-    Buffer encodeCommand(Command<Cfg> const& cmd)
+    Buffer encodeCommand(Command<Cfg> const& cmd) const
     {
         return std::visit([&](auto&& cmd) -> Buffer {
             return this->encode(cmd);
         }, cmd);
     }
-    Response<Cfg> decodeResponse(BufferView buff)
+    Response<Cfg> decodeResponse(BufferView buff) const
     {
         if (buff.size() < 2 + Cfg::CrcBytes)
             throw MalformedPacketException();
@@ -313,7 +313,7 @@ public:
         }
     }
 
-    Command<Cfg> decodeCommand(BufferView buff)
+    Command<Cfg> decodeCommand(BufferView buff) const
     {
         if (buff.size() < 2 + Cfg::CrcBytes)
             throw MalformedPacketException();
@@ -357,14 +357,14 @@ public:
                 throw UnexpectedMessageTypeException();
         }
     }
-    Buffer encodeResponse(Response<Cfg> const& resp)
+    Buffer encodeResponse(Response<Cfg> const& resp) const
     {
         return std::visit([&](auto&& resp) -> Buffer {
             return this->encode(resp);
         }, resp);
     }
 private:
-    size_t calcSize(size_t address_cnt, size_t data_cnt, size_t length_cnt)
+    size_t calcSize(size_t address_cnt, size_t data_cnt, size_t length_cnt) const
     {
         size_t const sz = 2 +
             (address_cnt * Cfg::AddressBytes) +
@@ -376,7 +376,7 @@ private:
             throw MessageSizeException("Serialized message too large to fit in Transport limits");
         return sz;
     }
-    Buffer mkBuffer(size_t sz, uint8_t txn_id, MessageType msg_type)
+    Buffer mkBuffer(size_t sz, uint8_t txn_id, MessageType msg_type) const
     {
         Buffer buf{};
         buf.reserve(sz);
@@ -384,38 +384,38 @@ private:
         appendByte(buf, static_cast<uint8_t>(msg_type));
         return buf;
     }
-    void appendByte(Buffer& buf, uint8_t v)
+    void appendByte(Buffer& buf, uint8_t v) const
     {
         buf.push_back(v);
     }
-    void appendAddress(Buffer& buf, Cfg::AddressType v)
+    void appendAddress(Buffer& buf, Cfg::AddressType v) const
     {
         for (size_t i = 0; i < Cfg::AddressBytes; i++) {
             buf.push_back(v & 0xFF);
             v >>= 8;
         }
     }
-    void appendData(Buffer& buf, Cfg::DataType v)
+    void appendData(Buffer& buf, Cfg::DataType v) const
     {
         for (size_t i = 0; i < Cfg::DataBytes; i++) {
             buf.push_back(v & 0xFF);
             v >>= 8;
         }
     }
-    void appendLength(Buffer& buf, Cfg::LengthType v)
+    void appendLength(Buffer& buf, Cfg::LengthType v) const
     {
         for (size_t i = 0; i < Cfg::LengthBytes; i++) {
             buf.push_back(v & 0xFF);
             v >>= 8;
         }
     }
-    void appendCrc(Buffer& buf)
+    void appendCrc(Buffer& buf) const
     {
         for (size_t i = 0; i < Cfg::CrcBytes; i++) {
             buf.push_back(0xFE);
         }
     }
-    uint8_t extractByte(BufferView& buf)
+    uint8_t extractByte(BufferView& buf) const
     {
         if (buf.size() < 1)
             throw MalformedPacketException();
@@ -423,7 +423,7 @@ private:
         buf = buf.subspan(1);
         return v;
     }
-    Cfg::AddressType extractAddress(BufferView& buf)
+    Cfg::AddressType extractAddress(BufferView& buf) const
     {
         if (buf.size() < Cfg::AddressBytes)
             throw MalformedPacketException();
@@ -434,7 +434,7 @@ private:
         buf = buf.subspan(Cfg::AddressBytes);
         return v;
     }
-    std::vector<typename Cfg::AddressType> extractAddressArray(BufferView& buf, size_t count)
+    std::vector<typename Cfg::AddressType> extractAddressArray(BufferView& buf, size_t count) const
     {
         std::vector<Cfg::AddressType> addrs;
         addrs.reserve(count);
@@ -443,7 +443,7 @@ private:
         }
         return addrs;
     }
-    Cfg::DataType extractData(BufferView& buf)
+    Cfg::DataType extractData(BufferView& buf) const
     {
         if (buf.size() < Cfg::DataBytes)
             throw MalformedPacketException();
@@ -454,7 +454,7 @@ private:
         buf = buf.subspan(Cfg::DataBytes);
         return v;
     }
-    std::vector<typename Cfg::DataType> extractDataArray(BufferView& buf, size_t count)
+    std::vector<typename Cfg::DataType> extractDataArray(BufferView& buf, size_t count) const
     {
         std::vector<Cfg::DataType> data;
         data.reserve(count);
@@ -463,7 +463,7 @@ private:
         }
         return data;
     }
-    std::vector<std::pair<typename Cfg::AddressType, typename Cfg::DataType>> extractAddressDataArray(BufferView& buf, size_t count)
+    std::vector<std::pair<typename Cfg::AddressType, typename Cfg::DataType>> extractAddressDataArray(BufferView& buf, size_t count) const
     {
         std::vector<std::pair<typename Cfg::AddressType, typename Cfg::DataType>> addr_data;
         addr_data.reserve(count);
@@ -474,7 +474,7 @@ private:
         }
         return addr_data;
     }
-    Cfg::LengthType extractLength(BufferView& buf)
+    Cfg::LengthType extractLength(BufferView& buf) const
     {
         if (buf.size() < Cfg::LengthBytes)
             throw MalformedPacketException();
@@ -485,7 +485,7 @@ private:
         buf = buf.subspan(Cfg::LengthBytes);
         return v;
     }
-    Cfg::CrcType extractCrc(BufferView& buf)
+    Cfg::CrcType extractCrc(BufferView& buf) const
     {
         if (buf.size() < Cfg::CrcBytes)
             throw MalformedPacketException();
@@ -497,14 +497,14 @@ private:
         buf = buf.subspan(0, buf.size() - Cfg::CrcBytes);
         return v;
     }
-    Cfg::CrcType calculateCrc(BufferView buf)
+    Cfg::CrcType calculateCrc(BufferView buf) const
     {
         return 0xFEFEFEFEFEFEFEFE;
     }
 private:
     template <typename T>
-    T decode(BufferView buf, uint8_t txn_id, MessageType msg_type) { static_assert(false); }
-    Buffer encode(ReadSingleCommand<Cfg> const& cmd)
+    T decode(BufferView buf, uint8_t txn_id, MessageType msg_type) const { static_assert(false); }
+    Buffer encode(ReadSingleCommand<Cfg> const& cmd) const
     {
         auto const sz = calcSize(1, 0, 0);
         auto buf = mkBuffer(sz, cmd.transaction_id, MessageType::eCmdSingleRead);
@@ -513,7 +513,7 @@ private:
         assert(buf.size() == sz);
         return buf;
     }
-    template <> ReadSingleCommand<Cfg> decode<ReadSingleCommand<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type)
+    template <> ReadSingleCommand<Cfg> decode<ReadSingleCommand<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type) const
     {
         auto const addr = extractAddress(buf);
         if (buf.size() != 0) throw MalformedPacketException();
@@ -522,7 +522,7 @@ private:
             .addr = addr,
         };
     }
-    Buffer encode(WriteSingleCommand<Cfg> const& cmd)
+    Buffer encode(WriteSingleCommand<Cfg> const& cmd) const
     {
         auto const sz = calcSize(1, 1, 0);
         auto buf = mkBuffer(sz, cmd.transaction_id, cmd.posted ? MessageType::eCmdSingleWritePosted : MessageType::eCmdSingleWrite);
@@ -532,7 +532,7 @@ private:
         assert(buf.size() == sz);
         return buf;
     }
-    template <> WriteSingleCommand<Cfg> decode<WriteSingleCommand<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type)
+    template <> WriteSingleCommand<Cfg> decode<WriteSingleCommand<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type) const
     {
         auto const addr = extractAddress(buf);
         auto const data = extractData(buf);
@@ -544,8 +544,10 @@ private:
             .data = data,
         };
     }
-    Buffer encode(ReadSeqCommand<Cfg> const& cmd)
+    Buffer encode(ReadSeqCommand<Cfg> const& cmd) const
     {
+        if (cmd.count > this->getMaxSeqReadCount())
+            throw MessageSizeException("ReadSeqCommand count exceeded transport-imposed limit");
         auto const sz = calcSize(1, 0, 2);
         auto buf = mkBuffer(sz, cmd.transaction_id, MessageType::eCmdSeqRead);
         appendAddress(buf, cmd.start_addr);
@@ -555,7 +557,7 @@ private:
         assert(buf.size() == sz);
         return buf;
     }
-    template <> ReadSeqCommand<Cfg> decode<ReadSeqCommand<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type)
+    template <> ReadSeqCommand<Cfg> decode<ReadSeqCommand<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type) const
     {
         auto const start_addr = extractAddress(buf);
         auto const increment = extractLength(buf);
@@ -568,7 +570,7 @@ private:
             .count = count,
         };
     }
-    Buffer encode(WriteSeqCommand<Cfg> const& cmd)
+    Buffer encode(WriteSeqCommand<Cfg> const& cmd) const
     {
         auto const sz = calcSize(1, cmd.data.size(), 2);
         auto buf = mkBuffer(sz, cmd.transaction_id, cmd.posted ? MessageType::eCmdSeqWritePosted : MessageType::eCmdSeqWrite);
@@ -581,7 +583,7 @@ private:
         assert(buf.size() == sz);
         return buf;
     }
-    template <> WriteSeqCommand<Cfg> decode<WriteSeqCommand<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type)
+    template <> WriteSeqCommand<Cfg> decode<WriteSeqCommand<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type) const
     {
         auto const start_addr = extractAddress(buf);
         auto const increment = extractLength(buf);
@@ -598,7 +600,7 @@ private:
             .data = std::move(data)
         };
     }
-    Buffer encode(ReadCompCommand<Cfg> const& cmd)
+    Buffer encode(ReadCompCommand<Cfg> const& cmd) const
     {
         auto const sz = calcSize(cmd.addresses.size(), 0, 1);
         auto buf = mkBuffer(sz, cmd.transaction_id, MessageType::eCmdCompRead);
@@ -609,7 +611,7 @@ private:
         assert(buf.size() == sz);
         return buf;
     }
-    template <> ReadCompCommand<Cfg> decode<ReadCompCommand<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type)
+    template <> ReadCompCommand<Cfg> decode<ReadCompCommand<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type) const
     {
         auto const count = extractLength(buf);
         if (buf.size() != count * Cfg::AddressBytes)
@@ -621,7 +623,7 @@ private:
             .addresses = std::move(addrs),
         };
     }
-    Buffer encode(WriteCompCommand<Cfg> const& cmd)
+    Buffer encode(WriteCompCommand<Cfg> const& cmd) const
     {
         auto const sz = calcSize(cmd.addr_data.size(), cmd.addr_data.size(), 1);
         auto buf = mkBuffer(sz, cmd.transaction_id, cmd.posted ? MessageType::eCmdCompWritePosted : MessageType::eCmdCompWrite);
@@ -634,7 +636,7 @@ private:
         assert(buf.size() == sz);
         return buf;
     }
-    template <> WriteCompCommand<Cfg> decode<WriteCompCommand<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type)
+    template <> WriteCompCommand<Cfg> decode<WriteCompCommand<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type) const
     {
         auto const count = extractLength(buf);
         if (buf.size() != count * (Cfg::AddressBytes + Cfg::DataBytes))
@@ -647,7 +649,7 @@ private:
             .addr_data = std::move(addr_data),
         };
     }
-    Buffer encode(ReadModifyWriteCommand<Cfg> const& cmd)
+    Buffer encode(ReadModifyWriteCommand<Cfg> const& cmd) const
     {
         auto const sz = calcSize(1, 2, 0);
         auto buf = mkBuffer(sz, cmd.transaction_id, cmd.posted ? MessageType::eCmdSingleRmwPosted : MessageType::eCmdSingleRmw);
@@ -658,7 +660,7 @@ private:
         assert(buf.size() == sz);
         return buf;
     }
-    template <> ReadModifyWriteCommand<Cfg> decode<ReadModifyWriteCommand<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type)
+    template <> ReadModifyWriteCommand<Cfg> decode<ReadModifyWriteCommand<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type) const
     {
         auto const addr = extractAddress(buf);
         auto const data = extractData(buf);
@@ -672,7 +674,7 @@ private:
             .mask = mask,
         };
     }
-    Buffer encode(ReadSingleAckResponse<Cfg> const& resp)
+    Buffer encode(ReadSingleAckResponse<Cfg> const& resp) const
     {
         auto const sz = calcSize(0, 1, 0);
         auto buf = mkBuffer(sz, resp.transaction_id, MessageType::eAckSingleRead);
@@ -681,7 +683,7 @@ private:
         assert(buf.size() == sz);
         return buf;
     }
-    template <> ReadSingleAckResponse<Cfg> decode<ReadSingleAckResponse<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type)
+    template <> ReadSingleAckResponse<Cfg> decode<ReadSingleAckResponse<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type) const
     {
         auto const data = extractData(buf);
         if (buf.size() != 0) throw MalformedPacketException();
@@ -690,7 +692,7 @@ private:
             .data = data,
         };
     }
-    Buffer encode(WriteSingleAckResponse<Cfg> const& resp)
+    Buffer encode(WriteSingleAckResponse<Cfg> const& resp) const
     {
         auto const sz = calcSize(0, 0, 0);
         auto buf = mkBuffer(sz, resp.transaction_id, MessageType::eAckSingleWrite);
@@ -698,14 +700,14 @@ private:
         assert(buf.size() == sz);
         return buf;
     }
-    template <> WriteSingleAckResponse<Cfg> decode<WriteSingleAckResponse<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type)
+    template <> WriteSingleAckResponse<Cfg> decode<WriteSingleAckResponse<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type) const
     {
         if (buf.size() != 0) throw MalformedPacketException();
         return WriteSingleAckResponse<Cfg>{
             .transaction_id = txn_id,
         };
     }
-    Buffer encode(ReadSeqAckResponse<Cfg> const& resp)
+    Buffer encode(ReadSeqAckResponse<Cfg> const& resp) const
     {
         auto const sz = calcSize(0, resp.data.size(), 1);
         auto buf = mkBuffer(sz, resp.transaction_id, MessageType::eAckSeqRead);
@@ -716,7 +718,7 @@ private:
         assert(buf.size() == sz);
         return buf;
     }
-    template <> ReadSeqAckResponse<Cfg> decode<ReadSeqAckResponse<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type)
+    template <> ReadSeqAckResponse<Cfg> decode<ReadSeqAckResponse<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type) const
     {
         auto const count = extractLength(buf);
         auto data = extractDataArray(buf, count);
@@ -726,7 +728,7 @@ private:
             .data = std::move(data),
         };
     }
-    Buffer encode(WriteSeqAckResponse<Cfg> const& resp)
+    Buffer encode(WriteSeqAckResponse<Cfg> const& resp) const
     {
         auto const sz = calcSize(0, 0, 0);
         auto buf = mkBuffer(sz, resp.transaction_id, MessageType::eAckSeqWrite);
@@ -734,14 +736,14 @@ private:
         assert(buf.size() == sz);
         return buf;
     }
-    template <> WriteSeqAckResponse<Cfg> decode<WriteSeqAckResponse<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type)
+    template <> WriteSeqAckResponse<Cfg> decode<WriteSeqAckResponse<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type) const
     {
         if (buf.size() != 0) throw MalformedPacketException();
         return WriteSeqAckResponse<Cfg>{
             .transaction_id = txn_id,
         };
     }
-    Buffer encode(ReadCompAckResponse<Cfg> const& resp)
+    Buffer encode(ReadCompAckResponse<Cfg> const& resp) const
     {
         auto const sz = calcSize(0, resp.data.size(), 1);
         auto buf = mkBuffer(sz, resp.transaction_id, MessageType::eAckCompRead);
@@ -752,7 +754,7 @@ private:
         assert(buf.size() == sz);
         return buf;
     }
-    template <> ReadCompAckResponse<Cfg> decode<ReadCompAckResponse<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type)
+    template <> ReadCompAckResponse<Cfg> decode<ReadCompAckResponse<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type) const
     {
         auto const count = extractLength(buf);
         auto data = extractDataArray(buf, count);
@@ -762,7 +764,7 @@ private:
             .data = std::move(data),
         };
     }
-    Buffer encode(WriteCompAckResponse<Cfg> const& resp)
+    Buffer encode(WriteCompAckResponse<Cfg> const& resp) const
     {
         auto const sz = calcSize(0, 0, 0);
         auto buf = mkBuffer(sz, resp.transaction_id, MessageType::eAckCompWrite);
@@ -770,14 +772,14 @@ private:
         assert(buf.size() == sz);
         return buf;
     }
-    template <> WriteCompAckResponse<Cfg> decode<WriteCompAckResponse<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type)
+    template <> WriteCompAckResponse<Cfg> decode<WriteCompAckResponse<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type) const
     {
         if (buf.size() != 0) throw MalformedPacketException();
         return WriteCompAckResponse<Cfg>{
             .transaction_id = txn_id,
         };
     }
-    Buffer encode(ReadSingleNakResponse<Cfg> const& resp)
+    Buffer encode(ReadSingleNakResponse<Cfg> const& resp) const
     {
         auto const sz = calcSize(0, 1, 0);
         auto buf = mkBuffer(sz, resp.transaction_id, MessageType::eNakSingleRead);
@@ -786,7 +788,7 @@ private:
         assert(buf.size() == sz);
         return buf;
     }
-    template <> ReadSingleNakResponse<Cfg> decode<ReadSingleNakResponse<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type)
+    template <> ReadSingleNakResponse<Cfg> decode<ReadSingleNakResponse<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type) const
     {
         auto const status = extractData(buf);
         if (buf.size() != 0) throw MalformedPacketException();
@@ -795,7 +797,7 @@ private:
             .status = status,
         };
     }
-    Buffer encode(WriteSingleNakResponse<Cfg> const& resp)
+    Buffer encode(WriteSingleNakResponse<Cfg> const& resp) const
     {
         auto const sz = calcSize(0, 1, 0);
         auto buf = mkBuffer(sz, resp.transaction_id, MessageType::eNakSingleWrite);
@@ -804,7 +806,7 @@ private:
         assert(buf.size() == sz);
         return buf;
     }
-    template <> WriteSingleNakResponse<Cfg> decode<WriteSingleNakResponse<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type)
+    template <> WriteSingleNakResponse<Cfg> decode<WriteSingleNakResponse<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type) const
     {
         auto const status = extractData(buf);
         if (buf.size() != 0) throw MalformedPacketException();
@@ -813,7 +815,7 @@ private:
             .status = status,
         };
     }
-    Buffer encode(ReadSeqNakResponse<Cfg> const& resp)
+    Buffer encode(ReadSeqNakResponse<Cfg> const& resp) const
     {
         auto const sz = calcSize(0, 1, 0);
         auto buf = mkBuffer(sz, resp.transaction_id, MessageType::eNakSeqRead);
@@ -822,7 +824,7 @@ private:
         assert(buf.size() == sz);
         return buf;
     }
-    template <> ReadSeqNakResponse<Cfg> decode<ReadSeqNakResponse<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type)
+    template <> ReadSeqNakResponse<Cfg> decode<ReadSeqNakResponse<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type) const
     {
         auto const status = extractData(buf);
         if (buf.size() != 0) throw MalformedPacketException();
@@ -831,7 +833,7 @@ private:
             .status = status,
         };
     }
-    Buffer encode(WriteSeqNakResponse<Cfg> const& resp)
+    Buffer encode(WriteSeqNakResponse<Cfg> const& resp) const
     {
         auto const sz = calcSize(0, 1, 0);
         auto buf = mkBuffer(sz, resp.transaction_id, MessageType::eNakSeqWrite);
@@ -840,7 +842,7 @@ private:
         assert(buf.size() == sz);
         return buf;
     }
-    template <> WriteSeqNakResponse<Cfg> decode<WriteSeqNakResponse<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type)
+    template <> WriteSeqNakResponse<Cfg> decode<WriteSeqNakResponse<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type) const
     {
         auto const status = extractData(buf);
         if (buf.size() != 0) throw MalformedPacketException();
@@ -849,7 +851,7 @@ private:
             .status = status,
         };
     }
-    Buffer encode(ReadCompNakResponse<Cfg> const& resp)
+    Buffer encode(ReadCompNakResponse<Cfg> const& resp) const
     {
         auto const sz = calcSize(0, 1, 0);
         auto buf = mkBuffer(sz, resp.transaction_id, MessageType::eNakCompRead);
@@ -858,7 +860,7 @@ private:
         assert(buf.size() == sz);
         return buf;
     }
-    template <> ReadCompNakResponse<Cfg> decode<ReadCompNakResponse<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type)
+    template <> ReadCompNakResponse<Cfg> decode<ReadCompNakResponse<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type) const
     {
         auto const status = extractData(buf);
         if (buf.size() != 0) throw MalformedPacketException();
@@ -867,7 +869,7 @@ private:
             .status = status,
         };
     }
-    Buffer encode(WriteCompNakResponse<Cfg> const& resp)
+    Buffer encode(WriteCompNakResponse<Cfg> const& resp) const
     {
         auto const sz = calcSize(0, 1, 0);
         auto buf = mkBuffer(sz, resp.transaction_id, MessageType::eNakCompWrite);
@@ -876,7 +878,7 @@ private:
         assert(buf.size() == sz);
         return buf;
     }
-    template <> WriteCompNakResponse<Cfg> decode<WriteCompNakResponse<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type)
+    template <> WriteCompNakResponse<Cfg> decode<WriteCompNakResponse<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type) const
     {
         auto const status = extractData(buf);
         if (buf.size() != 0) throw MalformedPacketException();
@@ -885,7 +887,7 @@ private:
             .status = status,
         };
     }
-    Buffer encode(ReadmodifywriteSingleAckResponse<Cfg> const& resp)
+    Buffer encode(ReadmodifywriteSingleAckResponse<Cfg> const& resp) const
     {
         auto const sz = calcSize(0, 0, 0);
         auto buf = mkBuffer(sz, resp.transaction_id, MessageType::eAckSingleRmw);
@@ -893,14 +895,14 @@ private:
         assert(buf.size() == sz);
         return buf;
     }
-    template <> ReadmodifywriteSingleAckResponse<Cfg> decode<ReadmodifywriteSingleAckResponse<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type)
+    template <> ReadmodifywriteSingleAckResponse<Cfg> decode<ReadmodifywriteSingleAckResponse<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type) const
     {
         if (buf.size() != 0) throw MalformedPacketException();
         return ReadmodifywriteSingleAckResponse<Cfg>{
             .transaction_id = txn_id,
         };
     }
-    Buffer encode(ReadmodifywriteSingleNakResponse<Cfg> const& resp)
+    Buffer encode(ReadmodifywriteSingleNakResponse<Cfg> const& resp) const
     {
         auto const sz = calcSize(0, 0, 0);
         auto buf = mkBuffer(sz, resp.transaction_id, MessageType::eNakSingleRmw);
@@ -908,7 +910,7 @@ private:
         assert(buf.size() == sz);
         return buf;
     }
-    template <> ReadmodifywriteSingleNakResponse<Cfg> decode<ReadmodifywriteSingleNakResponse<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type)
+    template <> ReadmodifywriteSingleNakResponse<Cfg> decode<ReadmodifywriteSingleNakResponse<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type) const
     {
         auto const status = extractData(buf);
         if (buf.size() != 0) throw MalformedPacketException();
@@ -917,7 +919,7 @@ private:
             .status = status,
         };
     }
-    Buffer encode(Interrupt<Cfg> const& resp)
+    Buffer encode(Interrupt<Cfg> const& resp) const
     {
         auto const sz = calcSize(0, 1, 0);
         auto buf = mkBuffer(sz, resp.transaction_id, MessageType::eAckSingleInterrupt);
@@ -926,7 +928,7 @@ private:
         assert(buf.size() == sz);
         return buf;
     }
-    template <> Interrupt<Cfg> decode<Interrupt<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type)
+    template <> Interrupt<Cfg> decode<Interrupt<Cfg>>(BufferView buf, uint8_t txn_id, MessageType msg_type) const
     {
         auto const status = extractData(buf);
         if (buf.size() != 0) throw MalformedPacketException();
