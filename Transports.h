@@ -22,5 +22,6 @@ public:
 };
 
 std::pair<std::unique_ptr<ISyncWireTransport>, std::unique_ptr<ISyncWireTransport>> makeSyncPairedIpcTransport(size_t max_message_size = 512);
+std::unique_ptr<ISyncWireTransport> makeSyncUdpTransport(std::string_view remote_host, uint16_t remote_port, std::string_view local_host = "", uint16_t local_port = 0, bool log = false);
 
 }
