@@ -1017,8 +1017,9 @@ private:
     }
     Buffer encode(ReadmodifywriteSingleNakResponse<Cfg> const& resp) const
     {
-        auto const sz = calcSize(0, 0, 0);
+        auto const sz = calcSize(0, 1, 0);
         auto buf = mkBuffer(sz, resp.transaction_id, MessageType::eNakSingleRmw);
+        appendData(buf, resp.status);
         appendCrc(buf);
         assert(buf.size() == sz);
         return buf;
