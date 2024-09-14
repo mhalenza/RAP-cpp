@@ -26,7 +26,7 @@ namespace RAP::RTF {
             auto const data = this->target->read(cmd.addr);
             return Serdes::ReadSingleAckResponse<Cfg>{
                 .transaction_id = cmd.transaction_id,
-                    .data = data,
+                .data = data,
             };
         }
         Serdes::WriteSingleAckResponse<Cfg> handleCmd(Serdes::WriteSingleCommand<Cfg> const& cmd)
@@ -42,7 +42,7 @@ namespace RAP::RTF {
             this->target->seqRead(cmd.start_addr, out_data, cmd.increment);
             return Serdes::ReadSeqAckResponse<Cfg>{
                 .transaction_id = cmd.transaction_id,
-                    .data = std::move(out_data),
+                .data = std::move(out_data),
             };
         }
         Serdes::WriteSeqAckResponse<Cfg> handleCmd(Serdes::WriteSeqCommand<Cfg> const& cmd)
@@ -58,7 +58,7 @@ namespace RAP::RTF {
             this->target->compRead(cmd.addresses, out_data);
             return Serdes::ReadCompAckResponse<Cfg>{
                 .transaction_id = cmd.transaction_id,
-                    .data = std::move(out_data),
+                .data = std::move(out_data),
             };
         }
         Serdes::WriteCompAckResponse<Cfg> handleCmd(Serdes::WriteCompCommand<Cfg> const& cmd)

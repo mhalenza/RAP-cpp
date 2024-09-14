@@ -68,6 +68,7 @@ concept IsConfigurationType = requires()
     std::same_as<decltype(CfgType::FeatureCompressed), bool>;
     std::same_as<decltype(CfgType::FeatureInterrupt), bool>;
     std::same_as<decltype(CfgType::FeatureReadModifyWrite), bool>;
+    // FeatureIncrement implies both FeatureSequential and FeatureFifo.  TODO: Add check for that
 };
 
 struct ExampleRapCfg {
