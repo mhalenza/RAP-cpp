@@ -260,7 +260,14 @@ enum class MessageType : uint8_t {
 template <typename Cfg>
 class Serdes {
 public:
-    explicit Serdes(size_t max_message_size_) : max_message_size(max_message_size_) {}
+    static constexpr size_t minimum_max_message_size = 32;
+    explicit Serdes(size_t max_message_size_)
+        : max_message_size(max_message_size_)
+    {
+        if (this->max_message_size < minimum_max_message_size) {
+            throw Exception("Serdes max_message_size must be at least Serdes::minimum_max_message_size!");
+        }
+    }
 
     Buffer encodeCommand(Command<Cfg> const& cmd) const
     {
@@ -363,6 +370,57 @@ public:
             return this->encode(resp);
         }, resp);
     }
+
+    Cfg::LengthType getMaxSeqReadCount() const
+    {
+        // Size is determined by Ack Response AND Length field
+        auto const max_by_cmd = [&] {
+            auto const overhead_sz = calcSize(0, /*count*/0, 1);
+            auto const read_data_sz_available = this->max_message_size - overhead_sz;
+            return read_data_sz_available / Cfg::DataBytes;
+        }();
+        auto const max_by_length = std::numeric_limits<Cfg::LengthType>::max();
+        return std::min<size_t>(max_by_cmd, max_by_length);
+    }
+    Cfg::LengthType getMaxSeqWriteCount() const
+    {
+        // Size is determined by Command AND Length field
+        auto const max_by_cmd = [&] {
+            auto const overhead_sz = calcSize(1, /*count*/0, 2);
+            auto const sz_available = this->max_message_size - overhead_sz;
+            return sz_available / Cfg::DataBytes;
+        }();
+        auto const max_by_length = std::numeric_limits<Cfg::LengthType>::max();
+        return std::min<size_t>(max_by_cmd, max_by_length);
+    }
+    Cfg::LengthType getMaxCompReadCount() const
+    {
+        // Size is determined by either Command or Ack Response AND Length field
+        auto const max_by_cmd = [&] {
+            auto const overhead_sz = calcSize(/*count*/0, 0, 1);
+            auto const sz_available = this->max_message_size - overhead_sz;
+            return sz_available / Cfg::AddressBytes;
+        }();
+        auto const max_by_ack = [&] {
+            auto const overhead_sz = calcSize(0, /*count*/0, 1);
+            auto const sz_available = this->max_message_size - overhead_sz;
+            return sz_available / Cfg::DataBytes;
+        }();
+        auto const max_by_length = std::numeric_limits<Cfg::LengthType>::max();
+        return std::min<size_t>({max_by_cmd, max_by_ack, max_by_length});
+    }
+    Cfg::LengthType getMaxCompWriteCount() const
+    {
+        // Size is determined by Command AND Length field
+        auto const max_by_cmd = [&] {
+            auto const overhead_sz = calcSize(/*count*/0, /*count*/0, 1);
+            auto const sz_available = this->max_message_size - overhead_sz;
+            return sz_available / (Cfg::AddressBytes + Cfg::DataBytes);
+        }();
+        auto const max_by_length = std::numeric_limits<Cfg::LengthType>::max();
+        return std::min<size_t>({max_by_cmd, max_by_length});
+    }
+
 private:
     size_t calcSize(size_t address_cnt, size_t data_cnt, size_t length_cnt) const
     {
@@ -572,6 +630,8 @@ private:
     }
     Buffer encode(WriteSeqCommand<Cfg> const& cmd) const
     {
+        if (cmd.data.size() > this->getMaxSeqWriteCount())
+            throw MessageSizeException("WriteSeqCommand count exceeded transport-imposed limit");
         auto const sz = calcSize(1, cmd.data.size(), 2);
         auto buf = mkBuffer(sz, cmd.transaction_id, cmd.posted ? MessageType::eCmdSeqWritePosted : MessageType::eCmdSeqWrite);
         appendAddress(buf, cmd.start_addr);
@@ -602,6 +662,8 @@ private:
     }
     Buffer encode(ReadCompCommand<Cfg> const& cmd) const
     {
+        if (cmd.addresses.size() > this->getMaxCompReadCount())
+            throw MessageSizeException("ReadCompCommand count exceeded transport-imposed limit");
         auto const sz = calcSize(cmd.addresses.size(), 0, 1);
         auto buf = mkBuffer(sz, cmd.transaction_id, MessageType::eCmdCompRead);
         appendLength(buf, cmd.addresses.size());
@@ -625,6 +687,8 @@ private:
     }
     Buffer encode(WriteCompCommand<Cfg> const& cmd) const
     {
+        if (cmd.addr_data.size() > this->getMaxCompWriteCount())
+            throw MessageSizeException("WriteCompCommand count exceeded transport-imposed limit");
         auto const sz = calcSize(cmd.addr_data.size(), cmd.addr_data.size(), 1);
         auto buf = mkBuffer(sz, cmd.transaction_id, cmd.posted ? MessageType::eCmdCompWritePosted : MessageType::eCmdCompWrite);
         appendLength(buf, cmd.addr_data.size());
@@ -709,6 +773,8 @@ private:
     }
     Buffer encode(ReadSeqAckResponse<Cfg> const& resp) const
     {
+        if (resp.data.size() > this->getMaxSeqReadCount())
+            throw MessageSizeException("ReadSeqAckResponse count exceeded transport-imposed limit");
         auto const sz = calcSize(0, resp.data.size(), 1);
         auto buf = mkBuffer(sz, resp.transaction_id, MessageType::eAckSeqRead);
         appendLength(buf, resp.data.size());
@@ -745,6 +811,8 @@ private:
     }
     Buffer encode(ReadCompAckResponse<Cfg> const& resp) const
     {
+        if (resp.data.size() > this->getMaxCompReadCount())
+            throw MessageSizeException("ReadCompAckResponse count exceeded transport-imposed limit");
         auto const sz = calcSize(0, resp.data.size(), 1);
         auto buf = mkBuffer(sz, resp.transaction_id, MessageType::eAckCompRead);
         appendLength(buf, resp.data.size());
