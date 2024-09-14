@@ -1,11 +1,11 @@
 #include "Transports.h"
+#include <YALF/YALF.h>
 #include <condition_variable>
+#include <format>
 #include <mutex>
 #include <queue>
 
 namespace RAP::Transport {
-
-
 
 class IpcTransportQueue
 {
@@ -56,19 +56,34 @@ private:
 class PairedIpcTransport : public ISyncWireTransport
 {
 public:
-    PairedIpcTransport(std::shared_ptr<IpcTransportQueue> tx_queue_, std::shared_ptr<IpcTransportQueue> rx_queue_, size_t max_message_size_)
+    PairedIpcTransport(std::shared_ptr<IpcTransportQueue> tx_queue_, std::shared_ptr<IpcTransportQueue> rx_queue_, size_t max_message_size_, bool log = false)
         : tx_queue(std::move(tx_queue_))
         , rx_queue(std::move(rx_queue_))
         , max_message_size(max_message_size_)
         , timeout(std::chrono::years(1))
+        , log(log)
     {}
+    static std::string_view getDomain() { return "PairedIpcTransport"; }
     virtual void send(BufferView buffer) override
     {
+        if (log) {
+            std::string data_str;
+            for (auto const d : buffer)
+                std::format_to(std::back_inserter(data_str), "{:02x} ", d);
+            LOG_NOISE(this, "send >>> [ {}]", data_str);
+        }
         this->tx_queue->push(buffer);
     }
     virtual Buffer recv() override
     {
-        return this->rx_queue->pop(this->timeout);
+        auto buffer = this->rx_queue->pop(this->timeout);
+        if (log) {
+            std::string data_str;
+            for (auto const d : buffer)
+                std::format_to(std::back_inserter(data_str), "{:02x} ", d);
+            LOG_NOISE(this, "recv <<< [ {}]", data_str);
+        }
+        return buffer;
     }
     virtual Buffer recv(std::stop_token stoken) override
     {
@@ -88,6 +103,7 @@ private:
     std::shared_ptr<IpcTransportQueue> rx_queue;
     size_t max_message_size;
     std::chrono::microseconds timeout;
+    bool log;
 };
 
 std::pair<std::unique_ptr<ISyncWireTransport>, std::unique_ptr<ISyncWireTransport>> makeSyncPairedIpcTransport(size_t max_message_size)
@@ -95,7 +111,7 @@ std::pair<std::unique_ptr<ISyncWireTransport>, std::unique_ptr<ISyncWireTranspor
     auto q1 = std::make_shared<IpcTransportQueue>();
     auto q2 = std::make_shared<IpcTransportQueue>();
     return {
-        std::make_unique<PairedIpcTransport>(q1, q2, max_message_size),
+        std::make_unique<PairedIpcTransport>(q1, q2, max_message_size, true),
         std::make_unique<PairedIpcTransport>(q2, q1, max_message_size)
     };
 }
